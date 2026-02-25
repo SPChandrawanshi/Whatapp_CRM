@@ -1,0 +1,210 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider   = "prisma-client-js"
+  engineType = "library"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum Role {
+  SUPER_ADMIN
+  ADMIN
+  MANAGER
+  TEAM_LEADER
+  COUNSELOR
+  SUPPORT
+}
+
+enum Status {
+  Active
+  Inactive
+}
+
+enum LeadPriority {
+  Low
+  Medium
+  High
+}
+
+enum ActivityStatus {
+  Success
+  Failed
+}
+
+enum ChannelType {
+  WhatsApp
+  Facebook
+  Website
+  Instagram
+  Telegram
+}
+
+enum ChannelStatus {
+  Active
+  Inactive
+  Error
+}
+
+enum SubscriptionStatus {
+  Active
+  Expired
+  Suspended
+}
+
+enum RoutingType {
+  Round_Robin @map("Round Robin")
+  Weightage
+  Direct
+}
+
+enum RoutingStatus {
+  Active
+  Paused
+}
+
+model User {
+  id               Int                @id @default(autoincrement())
+  name             String
+  email            String             @unique
+  password         String
+  role             Role               @default(COUNSELOR)
+  status           Status             @default(Active)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  leads            Lead[]             @relation("AssignedTo")
+  activityLogs     ActivityLog[]
+  messageTemplates MessageTemplate[]
+  counselorNotes   CounselorNote[]
+
+  @@map("users")
+}
+
+model Lead {
+  id             Int             @id @default(autoincrement())
+  name           String
+  country        String?
+  phone          String?
+  email          String?
+  program        String?
+  stage          String?         @default("New")
+  score          Int?            @default(0)
+  source         String?         @default("Website")
+  assignedTo     Int?
+  team           String?         @default("General")
+  priority       LeadPriority    @default(Medium)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  assignedUser   User?           @relation("AssignedTo", fields: [assignedTo], references: [id])
+  messages       Message[]
+  counselorNotes CounselorNote[]
+
+  @@map("leads")
+}
+
+model Message {
+  id        Int      @id @default(autoincrement())
+  leadId    Int
+  channel   String?
+  message   String   @db.Text
+  sender    String?
+  timestamp DateTime @default(now())
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+model ActivityLog {
+  id        Int            @id @default(autoincrement())
+  userId    Int?
+  action    String
+  module    String?
+  details   String?        @db.Text
+  status    ActivityStatus @default(Success)
+  ip        String?
+  device    String?
+  createdAt DateTime       @default(now())
+  user      User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("activity_logs")
+}
+
+model Channel {
+  id           Int           @id @default(autoincrement())
+  name         String
+  type         ChannelType
+  status       ChannelStatus @default(Active)
+  usage_count  Int?          @default(0)
+  lastActivity DateTime?
+  config       Json?
+  createdAt    DateTime      @default(now())
+
+  @@map("channels")
+}
+
+model Subscription {
+  id             Int                @id @default(autoincrement())
+  clientName     String
+  plan           String
+  status         SubscriptionStatus @default(Active)
+  renewalDate    DateTime?          @db.Date
+  messagesCount  Int?               @default(0)
+  contactsCount  Int?               @default(0)
+  createdAt      DateTime           @default(now())
+
+  @@map("subscriptions")
+}
+
+model MessageTemplate {
+  id             Int      @id @default(autoincrement())
+  name           String
+  content        String   @db.Text
+  category       String?
+  variable_count Int?     @default(0)
+  createdBy      Int?
+  createdAt      DateTime @default(now())
+  user           User?    @relation(fields: [createdBy], references: [id], onDelete: SetNull)
+
+  @@map("message_templates")
+}
+
+model RoutingRule {
+  id        Int           @id @default(autoincrement())
+  name      String
+  team      String?
+  country   String?
+  type      RoutingType   @default(Round_Robin)
+  status    RoutingStatus @default(Active)
+  priority  Int?          @default(1)
+  createdAt DateTime      @default(now())
+
+  @@map("routing_rules")
+}
+
+model CounselorNote {
+  id        Int      @id @default(autoincrement())
+  leadId    Int
+  authorId  Int
+  text      String   @db.Text
+  createdAt DateTime @default(now())
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  @@map("counselor_notes")
+}
+
+model Integration {
+  id        Int      @id @default(autoincrement())
+  name      String
+  type      String
+  url       String?
+  apiKey    String?
+  status    Status   @default(Active)
+  createdAt DateTime @default(now())
+
+  @@map("integrations")
+}
+
